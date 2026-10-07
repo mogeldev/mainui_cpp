@@ -668,7 +668,7 @@ void UI_UpdateMenu( float flTime )
 				return;
 
 			// load background track
-			// (Nightfire: the engine's start-up flow already plays the retail menu music)
+			// (Nightfire: the main page starts the retail menu music, UI_NfMain_Show)
 			if( !CL_IsActive( ) && !Nf::Active( ))
 				EngFuncs::PlayBackgroundTrack( "media/gamestartup", "media/gamestartup" );
 		}

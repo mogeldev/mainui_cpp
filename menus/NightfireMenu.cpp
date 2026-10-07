@@ -17,6 +17,9 @@ the Free Software Foundation, either version 3 of the License, or
 #include <stdlib.h>
 #include <ctype.h>
 
+// retail Mainmenu/Nightfire.txt InitNightfire: GUI_ACTION_MUSIC PLAY gui ambient frontend_ectest.ogg
+#define NF_FRONTEND_MUSIC "sound/music/mission/gui/frontend_ectest.ogg"
+
 // retail caption colours of the six main rows (state 0 normal / 3 hot);
 // state 2 is white (the script's own comments name 2 "pressed", 3 "hot")
 static const unsigned int nfRowColor[6] = { 0xFFFFC962, 0xFFFEB152, 0xFFFF9942, 0xFFFE7D30, 0xFFFE621E, 0xFFFD4C0F };
@@ -733,6 +736,11 @@ bool UI_NfMain_Show( void )
 		if( !nfMain )
 			nfMain = new CMenuNfMain();
 		nfMain->Show();
+
+		// retail InitNightfire: the main menu starts the front end music; the
+		// engine keeps it when it already plays (NF_Intro) and stops it when
+		// a game starts
+		EngFuncs::PlayBackgroundTrack( NF_FRONTEND_MUSIC, NF_FRONTEND_MUSIC );
 	}
 	return true;
 }
