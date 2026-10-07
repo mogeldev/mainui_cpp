@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "FontManager.h"
 #include "cursor_type.h"
 #include "utflib.h"
+#include "NightfireGfx.h"
 
 cvar_t		*ui_showmodels;
 cvar_t		*ui_show_window_stack;
@@ -667,7 +668,8 @@ void UI_UpdateMenu( float flTime )
 				return;
 
 			// load background track
-			if( !CL_IsActive( ))
+			// (Nightfire: the engine's start-up flow already plays the retail menu music)
+			if( !CL_IsActive( ) && !Nf::Active( ))
 				EngFuncs::PlayBackgroundTrack( "media/gamestartup", "media/gamestartup" );
 		}
 
@@ -1152,6 +1154,9 @@ void UI_Init( void )
 
 	// show cl_predict dialog
 	EngFuncs::CvarRegister( "menu_mp_firsttime2", "1", FCVAR_ARCHIVE );
+
+	// Nightfire front end cvars, before config.cfg sets their archived values
+	Nf::RegisterCvars();
 
 	for( CMenuEntry *entry = s_pEntries; entry; entry = entry->m_pNext )
 	{

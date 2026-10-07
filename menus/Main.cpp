@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gameinfo.h"
 #include "AnimatedBanner.h"
 #include "MovieBanner.h"
+#include "NightfireMenu.h"
 
 #define ART_MINIMIZE_N	"gfx/shell/min_n"
 #define ART_MINIMIZE_F	"gfx/shell/min_f"
@@ -42,6 +43,14 @@ class CMenuMain: public CMenuFramework
 {
 public:
 	CMenuMain() : CMenuFramework( "CMenuMain" ) { }
+
+	// the Nightfire port shows its own front end
+	void Show( void ) override
+	{
+		if( UI_NfMain_Show( ))
+			return;
+		CMenuFramework::Show();
+	}
 
 	bool KeyDown( int key ) override;
 
@@ -425,6 +434,10 @@ static void UI_QuitDialog_f( void )
 		EngFuncs::ClientCmd( false, "quit \"menu\"\n" );
 		return;
 	}
+
+	// the Nightfire port asks on its own page
+	if( UI_NfMain_QuitDialog( ))
+		return;
 
 	if( !UI_IsVisible( ))
 		UI_Main_Menu();

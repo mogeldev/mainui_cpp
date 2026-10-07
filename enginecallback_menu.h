@@ -502,6 +502,20 @@ public:
 			textfuncs.pfnSetTextInputRect( x, y, w, h );
 	}
 
+	// engine fork (Nightfire): rotated quad of the picture set with PIC_Set; false if the engine lacks it
+	static inline bool HasPIC_DrawRotated( void )
+	{
+		return textfuncs.pfnPIC_DrawRotated != NULL;
+	}
+
+	static inline bool PIC_DrawRotated( float cx, float cy, float w, float h, float degrees, bool additive )
+	{
+		if( !textfuncs.pfnPIC_DrawRotated )
+			return false;
+		textfuncs.pfnPIC_DrawRotated( cx, cy, w, h, degrees, additive );
+		return true;
+	}
+
 	static inline bool GetRenderers( int num, char *sz1, size_t s1, char *sz2, size_t s2 )
 	{
 		return textfuncs.pfnGetRenderers( num, sz1, s1, sz2, s2 ) != 0;

@@ -19,6 +19,7 @@ GNU General Public License for more details.
 #include "BackgroundBitmap.h"
 #include "Utils.h"
 #include "BaseWindow.h"
+#include "NightfireGfx.h"
 
 bool CMenuBackgroundBitmap::s_bEnableLogoMovie = false;
 bool CMenuBackgroundBitmap::s_bGameHasSteamBackground = false;
@@ -107,6 +108,13 @@ void CMenuBackgroundBitmap::Draw()
 	if( bForceColor )
 	{
 		DrawColor();
+		return;
+	}
+
+	// Nightfire port: the animated retail front end replaces the stock background
+	if( Nf::Active( ))
+	{
+		Nf::DrawBackground();
 		return;
 	}
 
