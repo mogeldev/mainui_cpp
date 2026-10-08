@@ -680,6 +680,150 @@ void CMenuNfCredits::Draw( void )
 }
 
 // =====================================================================
+// mission scores (retail client CSinglePlayerScoreboard, 0x4104E7E0, over
+// gui/Scripts/missionscores.txt; project docs/retail/scoring.md). The engine
+// opens it instead of the loading screen when a changelevel ends the
+// mission (sv_newunit 1: trigger_changelevel spawnflag 8) and closes it at
+// signon. The client
+// (HLSDK cl_dll) keeps the last "ScoreInfoS" stats in the cvar nf_scoreinfo:
+// frags enemies nonlethal shots hits moments totalmoments secrets
+// totalsecrets time partime (seconds)
+
+class CMenuNfScores : public CMenuNfPage
+{
+public:
+	CMenuNfScores() : CMenuNfPage( "CMenuNfScores", Nf::NF_BG_TAB ) { }
+
+	void Show( void ) override
+	{
+		BaseClass::Show();
+		// the loading screen is one frozen frame: no fade in
+		DisableTransition();
+	}
+
+	bool KeyDown( int key ) override
+	{
+		// retail BLOCK_INPUT; the escape exit only exists after the last mission
+		return true;
+	}
+
+	void Draw( void ) override;
+};
+
+// retail: steps of a tenth, truncated (ftol)
+static int NfScoreSteps( int count, int total )
+{
+	float f = (float)count / (float)total;
+
+	if( f < 0.0f ) f = 0.0f;
+	if( f > 1.0f ) f = 1.0f;
+	return (int)( f * 10.0f );
+}
+
+static void NfScoreTime( char *buf, size_t size, int t )
+{
+	if( t / 3600 > 0 )
+		snprintf( buf, size, "%d:%02d:%02d", t / 3600, ( t / 60 ) % 60, t % 60 );
+	else
+		snprintf( buf, size, "%d:%02d", t / 60, t % 60 );
+}
+
+void CMenuNfScores::Draw( void )
+{
+	const Nf::nffont_t &serp = Nf::GetFont( "SerpentineMedium-20" );
+	const Nf::nffont_t &font = Nf::GetFont( "ConduitITCTT_B-22" );
+	// retail rows: ConduitITCTT_B-22 0.45 0.6, 255 216 181, drop shadow
+	const unsigned color = PackRGBA( 255, 216, 181, 255 );
+	int frags = 0, enemies = 0, nonlethal = 0, shots = 0, hits = 0;
+	int moments = 0, totalMoments = 0, secrets = 0, totalSecrets = 0;
+	float time = 0.0f, par = 0.0f;
+	int score[6], subtotal = 0, bonus, total;
+	char count[6][32], text[32];
+	const char *names[6] = { "Bond Moves", "Opponents Dispatched", "Non-Lethal Bonus", "Accuracy", "Secrets", "Time" };
+	const char *medal;
+
+	sscanf( EngFuncs::GetCvarString( "nf_scoreinfo" ), "%d %d %d %d %d %d %d %d %d %f %f", &frags, &enemies, &nonlethal,
+		&shots, &hits, &moments, &totalMoments, &secrets, &totalSecrets, &time, &par );
+	if( par <= 0.0f )
+		par = 1800.0f;	// retail default without PARTIME
+
+	// retail quirks kept: "Opponents Dispatched" scores the hits, not the
+	// kills, and the time compares the ratio with the par seconds
+	score[0] = totalMoments ? NfScoreSteps( moments, totalMoments ) * 30000 : 0;
+	score[1] = enemies ? NfScoreSteps( hits, enemies ) * 20000 : 0;
+	score[2] = nonlethal * 10000;
+	score[3] = shots ? NfScoreSteps( hits, shots ) * 20000 : 0;
+	score[4] = totalSecrets ? NfScoreSteps( secrets, totalSecrets ) * 30000 : 0;
+	if( time / par <= 0.5f ) score[5] = 100000;
+	else if( time / par <= par ) score[5] = 75000;
+	else if( time <= 2.0f * par ) score[5] = 50000;
+	else if( time <= 3.0f * par ) score[5] = 25000;
+	else score[5] = 10000;
+
+	snprintf( count[0], sizeof( count[0] ), "%d / %d", moments, totalMoments );
+	snprintf( count[1], sizeof( count[1] ), "%d / %d", frags, enemies );
+	snprintf( count[2], sizeof( count[2] ), "%d / %d", nonlethal, enemies );
+	snprintf( count[3], sizeof( count[3] ), "%d / %d", hits, shots );
+	snprintf( count[4], sizeof( count[4] ), "%d / %d", secrets, totalSecrets );
+	{
+		char t1[16], t2[16];
+
+		NfScoreTime( t1, sizeof( t1 ), (int)time );
+		NfScoreTime( t2, sizeof( t2 ), (int)par );
+		snprintf( count[5], sizeof( count[5] ), "%s / %s", t1, t2 );
+	}
+
+	for( int i = 0; i < 6; i++ )
+		subtotal += score[i];
+	bonus = (int)EngFuncs::GetCvarFloat( "skill" );
+	if( bonus < 1 ) bonus = 1;
+	if( bonus > 3 ) bonus = 3;
+	total = subtotal * bonus;
+
+	// retail gen_title_button: 13 42 220x22, SerpentineMedium-20 0.5 0.70, centred
+	Nf::DrawText2( serp, "MISSION RESULTS", -1, 13, 42, 220, 0.5f, 0.70f, nfTextColor, QM_CENTER, true );
+
+	// retail theMedal: 54 110 128x128 in the dial, by the total score
+	if( total >= 1000000 ) medal = "gui/frontend/i_eol_medal_c.png";
+	else if( total >= 500000 ) medal = "gui/frontend/i_eol_medal_b.png";
+	else medal = "gui/frontend/i_eol_medal_a.png";
+	Nf::DrawPic( medal, 54, 110, 128, 128, PackRGBA( 255, 255, 255, 255 ), NF_NORMAL );
+
+	// rows y 140 + 20 * i, height 18, vertically centred: name 260 w155
+	// left, breakdown 420 w110 right, score 535 w85 right
+	for( int i = 0; i < 6; i++ )
+	{
+		float y = 140 + 20 * i + ( 18 - Nf::FontHeight( font, 0.6f )) * 0.5f;
+
+		Nf::DrawText2( font, names[i], -1, 260, y, 155, 0.45f, 0.6f, color, QM_LEFT, true );
+		Nf::DrawText2( font, count[i], -1, 420, y, 110, 0.45f, 0.6f, color, QM_RIGHT, true );
+		snprintf( text, sizeof( text ), "%d", score[i] );
+		Nf::DrawText2( font, text, -1, 535, y, 85, 0.45f, 0.6f, color, QM_RIGHT, true );
+	}
+
+	{
+		float y = 310 + ( 18 - Nf::FontHeight( font, 0.6f )) * 0.5f;
+
+		Nf::DrawText2( font, "Subtotal :", -1, 320, y, 210, 0.45f, 0.6f, color, QM_RIGHT, true );
+		snprintf( text, sizeof( text ), "%d", subtotal );
+		Nf::DrawText2( font, text, -1, 535, y, 85, 0.45f, 0.6f, color, QM_RIGHT, true );
+
+		y += 20;
+		Nf::DrawText2( font, "Difficulty Bonus :", -1, 320, y, 210, 0.45f, 0.6f, color, QM_RIGHT, true );
+		snprintf( text, sizeof( text ), "%dx", bonus );
+		Nf::DrawText2( font, text, -1, 535, y, 85, 0.45f, 0.6f, color, QM_RIGHT, true );
+
+		// TOTAL: scale 0.5 0.7
+		y = 360 + ( 18 - Nf::FontHeight( font, 0.7f )) * 0.5f;
+		Nf::DrawText2( font, "TOTAL :", -1, 320, y, 210, 0.5f, 0.7f, color, QM_RIGHT, true );
+		snprintf( text, sizeof( text ), "%d", total );
+		Nf::DrawText2( font, text, -1, 535, y, 85, 0.5f, 0.7f, color, QM_RIGHT, true );
+	}
+
+	CMenuNfPage::Draw();
+}
+
+// =====================================================================
 
 static CMenuNfMain *nfMain;
 static CMenuNfSingle *nfSingle;
@@ -786,3 +930,20 @@ static void UI_NfPage_f( void )
 		Con_Printf( "usage: ui_nf_page single | missions | difficulty <map>\n" );
 }
 ADD_COMMAND( ui_nf_page, UI_NfPage_f );
+
+// the engine opens the mission scores over the loading screen (closed with
+// the menu at signon); also a test hook
+static void UI_NfMissionScores_f( void )
+{
+	static CMenuNfScores *nfScores;
+
+	if( !Nf::Active( ))
+		return;
+
+	if( !nfScores )
+		nfScores = new CMenuNfScores();
+
+	EngFuncs::KEY_SetDest( KEY_MENU );
+	nfScores->Show();
+}
+ADD_COMMAND( ui_nf_missionscores, UI_NfMissionScores_f );
